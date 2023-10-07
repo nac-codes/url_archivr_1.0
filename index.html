@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Arweave URL Archivr</title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="styles.css">
+
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/arweave/bundles/web.bundle.js"></script>
+    <script src="https://unpkg.com/arweave/bundles/web.bundle.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="dist/bundle.js"></script>
+    <script type="module">
+        
+        /**
+         * Removes all event listeners from an element by cloning it and replacing the original.
+         * @param {string} elementId - The ID of the element to clear event listeners from.
+         * @returns {Element} - The cloned element.
+         */
+        function clearEventListeners(elementId) {
+            let element = document.getElementById(elementId);
+            let clone = element.cloneNode(true);
+            element.parentNode.replaceChild(clone, element);
+            return clone;
+        }
+
+        /**
+         * Clears all child nodes from the 'preview' element.
+         */
+        function clearPreview() {
+            let parentElement = document.getElementById('preview');
+            while (parentElement.firstChild) {
+                parentElement.removeChild(parentElement.firstChild);
+            }
+        }
+
+        /**
+         * Displays the provided HTML content inside an iframe within the 'preview' element.
+         * @param {string} html_content - The HTML content to display.
+         */
+        function displayHTMLInIframe(html_content) {
+            // Clear existing content in preview
+            clearPreview();
+
+            // Convert the HTML content to a Blob object
+            let blob = new Blob([html_content], { type: 'text/html' });
+
+            // Create a URL for the Blob object
+            let url = URL.createObjectURL(blob);
+
+            // Create an iframe element
+            let iframe = document.createElement('iframe');
+
+            // Set the source of the iframe to the blob URL
+            iframe.src = url;
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+
+            // Append the iframe to the preview element
+            document.getElementById('preview').appendChild(iframe);
+        }
+
+
+        // Event listener for when the DOM is fully loaded
+        document.addEventListener("DOMContentLoaded", async function() {
+            // Toggle theme between light and dark
+            document.getElementById('theme-toggle').addEventListener('click', function() {
+                let currentTheme = document.body.getAttribute('data-theme');
+                
+                if (currentTheme === 'dark') {
+                    document.body.removeAttribute('data-theme');
+                } else {
+                    document.body.setAttribute('data-theme', 'dark');
+                }
+            });
+
+            
+            var convertButton = document.getElementById("convertButton");
+            var inputArea = document.getElementById("inputArea");
+
+            // Event listener for the convert button
+            convertButton.addEventListener("click", async function() {
+                // Clear event listeners from the 'confirmBtn' element
+                let newConfirmBtn = clearEventListeners('confirmBtn');
+
+                // Initialize Arweave and fetch network info
+                const arweave = Arweave.init({});
+                const networkInfo = await arweave.network.getInfo();
+                console.log(networkInfo);
+
+                // Log wallet details
+                console.log(`You are using the ${window.arweaveWallet.walletName} wallet.`);
+                console.log(`Wallet version is ${window.arweaveWallet.walletVersion}`);
+
+                // Check wallet permissions and connect if necessary
+                const permissions = await window.arweaveWallet.getPermissions();
+                if (permissions.length <= 0) {
+                    await window.arweaveWallet.connect(["ACCESS_ADDRESS"], {
+                    name: "Super Cool App",
+                    logo: "https://arweave.net/jAvd7Z1CBd8gVF2D6ESj7SMCCUYxDX_z3vpp5aHdaYk"
+                    });
+                }
+
+                // Fetch and log user's wallet address
+                const userAddress = await window.arweaveWallet.getActiveAddress();
+                console.log("Your wallet address is", userAddress);
+
+                // Fetch and log user's wallet address
+                const balance = await arweave.wallets.getBalance(userAddress);
+                console.log(balance);
+                console.log(arweave.ar.winstonToAr(balance));
+
+                // Fetch and log user's last transaction ID
+                const lastTransactionID = await arweave.wallets.getLastTransactionID(userAddress);
+                console.log("Last Transaction ID:", lastTransactionID);
+                
+
+                // ---- FUNCTIONS -----
+
+                // Function to create and sign a transaction
+                async function createAndSignTransaction(array, contentType) {
+                    await window.arweaveWallet.connect(["SIGN_TRANSACTION"]);
+
+                    const transaction = await arweave.createTransaction({ data: array });
+                    transaction.addTag('Content-Type', contentType);
+                    await arweave.transactions.sign(transaction);
+                    console.log(transaction)
+                    return transaction;
+                }
+
+                // Function to upload a transaction
+                async function uploadTransaction(transaction) {
+                    let uploader = await arweave.transactions.getUploader(transaction);
+
+                    while (!uploader.isComplete) {
+                        // console.log(uploader)
+                        await uploader.uploadChunk();
+                        if (uploader.totalChunks > 0) {
+                            console.log(`${uploader.pctComplete}% complete, ${uploader.uploadedChunks}/${uploader.totalChunks}`);
+                        }
+                    }
+                }
+
+                // Function to check the status of a transaction
+                async function checkStatus(id, tries = 0) {
+                            if (tries >= 10) {  // Limit number of tries to 10
+                                console.log("Tried 10 times, stopping...");
+                                return;
+                            }
+
+                            arweave.transactions.getStatus(id)
+                                .then(res => {
+                                console.log(res);
+                                if (res.status.toString().startsWith("2")) {
+                                    console.log("Upload successful");
+                                } else {
+                                    console.log("Retrying...");
+                                    setTimeout(() => checkStatus(id, tries + 1), 10000);  // Try again after 10 seconds
+                                }
+                                })
+                                .catch(err => console.log(err));  // Log any errors
+                }
+
+                // -----------------
+                
+                // Clear the preview and check for existing iframe
+                let outputMessage = document.getElementById('outputMessage');
+                outputMessage.innerText = ``;
+
+                let parentElement = document.getElementById('preview');
+
+                // Check if an iframe already exists
+                let existingIframe = parentElement.querySelector('iframe');
+
+                // If an iframe exists, remove it
+                if (existingIframe) {
+                parentElement.removeChild(existingIframe);
+                }
+
+                // -----------------
+                
+                // Fetch input values and make a request to the server
+                var inputText = inputArea.value;
+
+                var isPDFChecked = document.getElementById('convertToPDF').checked;
+                console.log(isPDFChecked)
+
+                var isFile = document.getElementById('isFile').checked;
+                console.log(isFile)
+              
+                document.getElementById('confirmBtn').style.display = 'block';
+
+                            
+                try {
+                    axios.get('http://127.0.0.1:5000/scrape', {
+                        params: {
+                            url: inputText,
+                            convertToPDF: isPDFChecked ? 1 : 0,
+                            file: isFile ? 1 : 0
+                        },
+                        responseType: isFile ? 'arraybuffer' : (isPDFChecked ? 'blob' : 'text')
+                        })
+                        .then(async function (response) {
+                            // Handle the response based on the type of conversion selected
+                            let transactionID;
+                            
+                            if (isFile) {
+                                const arrayBuffer = response.data;
+                                const array = new Uint8Array(arrayBuffer);
+
+                                console.log(array)
+                                console.log(response.headers['content-type'])
+
+                                let blob = new Blob([arrayBuffer], {type: response.headers['content-type']});
+                                let fileURL = URL.createObjectURL(blob);
+
+                                // Determine how to display the file based on its type
+                                let previewHTML = '';
+                                let contentType = response.headers['content-type'];
+                                if (contentType.startsWith('image')) {
+                                    previewHTML = `<img src="${fileURL}" />`;
+                                } else if (contentType === 'application/pdf') {
+                                    previewHTML = `<embed src="${fileURL}" type="application/pdf" width="100%" height="100%">`;
+                                } else if (contentType.startsWith('video')) {
+                                    previewHTML = `<video controls>
+                                        <source src="${fileURL}" type="${contentType}">
+                                        Your browser does not support the video tag.
+                                    </video>`;
+                                } else if (contentType.startsWith('audio')) {
+                                    previewHTML = `<audio controls>
+                                        <source src="${fileURL}" type="${contentType}">
+                                        Your browser does not support the audio element.
+                                    </audio>`;
+                                } else {
+                                    previewHTML = '<p>File type unknown. Preview unavailable.</p>'
+                                }
+
+
+                                document.querySelector('#preview').innerHTML = previewHTML;
+                                document.querySelector('#confirmBtn').disabled = false;
+
+                                
+                                newConfirmBtn.addEventListener('click', async () => {
+                                    document.getElementById('confirmBtn').disabled = true;
+
+                                    try {                                        
+                                        let transaction = await createAndSignTransaction(array, response.headers['content-type']);
+                                        console.log(transaction);
+
+                                        await uploadTransaction(transaction);
+
+                                        checkStatus(transaction.id);
+                                        
+                                        outputMessage.innerText = `A version of your URL will be available at: https://arweave.net/${transaction.id}`;
+                                    } catch(err) {
+                                        console.log(err);
+                                    }
+                                });
+                            } 
+                            
+                            else if (isPDFChecked) {
+                                const file = new Blob([response.data], {type: 'application/pdf'});                        
+                                const fileURL = URL.createObjectURL(file);
+                                
+                                document.querySelector('#preview').innerHTML = `<embed src="${fileURL}" type="application/pdf" width="100%" height="100%">`;
+                                document.querySelector('#confirmBtn').disabled = false;
+                                    
+                                newConfirmBtn.addEventListener('click', async () => {
+                                    document.getElementById('confirmBtn').disabled = true;
+
+                                    
+
+                                    function readFileAsArrayBuffer(file) {
+                                        return new Promise((resolve, reject) => {
+                                            let reader = new FileReader();
+
+                                            reader.onload = function() {
+                                                let arrayBuffer = this.result;
+                                                let array = new Uint8Array(arrayBuffer);
+                                                resolve(array);
+                                            };
+
+                                            reader.onerror = function() {
+                                                reject(new Error("Error reading file"));
+                                            };
+
+                                            reader.readAsArrayBuffer(file);
+                                        });
+                                    }
+
+                                    async function handleFile(file) {
+                                        try {
+                                            let array = await readFileAsArrayBuffer(file);
+                                            console.log(Date.now(), array);
+
+                                            let transaction = await createAndSignTransaction(array, 'application/pdf');
+                                            console.log(transaction);
+
+                                            await uploadTransaction(transaction);
+
+                                            checkStatus(transaction.id);
+
+                                            outputMessage.innerText = `A version of your URL will be available at: https://arweave.net/${transaction.id}`;
+                                        } catch (err) {
+                                            console.log(err);
+                                        }
+                                    }
+
+                                    
+                                    handleFile(file);
+
+                                });
+
+                            } 
+                            else {                                
+                                const html_content = response.data;
+                                displayHTMLInIframe(html_content);
+
+                                document.getElementById('confirmBtn').disabled = false;
+                                                            
+                                newConfirmBtn.addEventListener('click', async () => {
+                                    document.getElementById('confirmBtn').disabled = true;
+                                    
+                                    try {
+                                        let transaction = await createAndSignTransaction(html_content, 'text/html');
+                                        console.log(transaction);
+
+                                        await uploadTransaction(transaction);
+
+                                        checkStatus(transaction.id);
+                                        
+                                        outputMessage.innerText = `A version of your URL will be available at: https://arweave.net/${transaction.id}`;
+                                    } catch(err) {
+                                        console.log(err);
+                                    }
+                                    
+                                });
+                            }
+                
+                        })
+                        .catch(function (error) {
+                            console.log(error);
+                            outputMessage.innerText = `The URL you entered is invalid or some other error occurred. Please try again with a different URL.`
+                        });
+
+
+
+                } catch (error) {
+                    console.error(error);
+                }
+                
+                // Clear Values
+                inputText = null;
+                document.getElementById('inputArea').value = '';
+
+            });
+        });
+        
+    </script>
+
+</head>
+<body>
+    <div class="container">
+        <h1>
+            Arweave URL Uploader
+            <button id="theme-toggle" class="theme-toggle">Toggle Theme</button>
+        </h1>
+        <input class="input-field" id="inputArea" type="text" placeholder="Enter URL or file path">
+        <div id="actions">
+            <div class="button-container">
+                <button id="convertButton" class="action-btn">Convert</button>
+            </div>
+            <label><input type="checkbox" id="isFile"> File</label>
+            <label><input type="checkbox" id="convertToPDF"> Convert to PDF</label>
+        </div>
+
+        <div id="output"></div>
+        
+        <div id="preview" class="preview-area"></div>
+        <div class="button-container">
+            <button id="confirmBtn" class="action-btn" disabled>Confirm</button>
+        </div>
+        
+        <div id="outputMessage" class="message-area"></div>
+
+    <!-- Other HTML elements -->
+
+
+    <script src="urlClassifier.js"></script>
+    <script type="module" src="index.js"></script>
+</body>
+</html>

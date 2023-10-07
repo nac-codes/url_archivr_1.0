@@ -1,0 +1,147 @@
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f7f9fc;
+    color: #333;
+    margin: 0;
+    padding: 0;
+} 
+
+.container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 1.5rem;
+    background-color: #ffffff;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+}
+
+h1 {
+    color: #2c3e50;
+    margin-top: 0;
+    font-size: 2rem;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    border-radius: 5px;
+    border: 1px solid #bdc3c7;
+    box-sizing: border-box; /* This will ensure padding and border are included in the element's total width */
+}
+
+.action-btn {
+    padding: 0.75rem 1.5rem;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    float: left; /* to move the button to the left */
+}
+
+.action-btn:hover {
+    background-color: #2980b9;
+}
+
+.button-container {
+    text-align: center;
+    margin: 1rem 0;
+    overflow: hidden; /* this ensures the container expands to hold its floated children */
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.checkboxes {
+    float: left;
+    margin-left: 20px; /* space between the button and checkboxes */
+}
+
+.checkboxes label {
+    display: inline-block; /* display labels side by side */
+    margin-left: 10px; /* space between each checkbox */
+    vertical-align: middle; 
+}
+
+.preview-area {
+    padding: 10px;
+    margin: 10px 0;
+    height: 500px;
+    max-height: 4000px;
+    overflow-y: auto;
+    border: 1px solid #bdc3c7;
+    border-radius: 5px;
+    clear: both; /* ensure this div comes below the floated elements above */
+}
+
+.message-area {
+    margin-top: 1rem;
+    font-weight: bold;
+}
+
+#actions {
+    /* This ensures any child elements with display:inline-block will appear on the same line */
+    white-space: nowrap;
+}
+
+#convertButton, #actions label {
+    /* Causes elements to be in a line */
+    display: inline-block;
+    
+    /* Optional: Space between the elements */
+    margin-right: 10px;
+}
+
+.theme-toggle {
+    padding: 0.5rem 1rem;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.theme-toggle:hover {
+    background-color: #2980b9;
+}
+
+[data-theme="dark"] {
+    background-color: #1a1a1a; /* Charcoal */
+    color: #d1d1d1; /* Slightly off-white */
+}
+
+[data-theme="dark"] h1 {
+    background-color: #262626; /* The blue you specified for the header */
+    color: #3498db;
+    border-bottom: 2px solid #6f80a1;
+}
+
+[data-theme="dark"] div {
+    background-color: #262626; /* Slightly lighter than the background, but still dark */
+}
+
+/* Retaining the original button color as per your request */
+[data-theme="dark"] button {
+    background-color: #2c3e50; /* The original blue */
+    color: white;
+}
+
+[data-theme="dark"] .input-field {
+    background-color: #444; 
+    border-color: #555;
+    color: #d1d1d1;
+}
+
+[data-theme="dark"] input[type="checkbox"] {
+    background-color: #262626; 
+    border: 1px solid #d1d1d1; 
+}
+
